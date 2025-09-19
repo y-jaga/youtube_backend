@@ -37,7 +37,6 @@ router.route("/").patch(verifyJwt, updateUserDetails);
 router.route("/avatar").patch(
   upload.fields([
     { name: "avatar", maxCount: 1 },
-    { name: "coverImage", maxCount: 1 },
   ]),
   verifyJwt,
   updateUserAvatar
@@ -45,7 +44,6 @@ router.route("/avatar").patch(
 
 router.route("/cover-image").patch(
   upload.fields([
-    { name: "avatar", maxCount: 1 },
     { name: "coverImage", maxCount: 1 },
   ]),
   verifyJwt,

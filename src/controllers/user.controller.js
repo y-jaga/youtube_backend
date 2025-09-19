@@ -312,16 +312,20 @@ const updateUserDetails = asyncHandler(async (req, res) => {
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-  //req.files = {avatar: [{}], coverImage: [{}]}
+  //req.files = {avatar: [{}]}
   const avatarLocalPath = req.files?.avatar?.[0]?.path;
 
   if (!avatarLocalPath) {
     throw new ApiError(400, "avatar file is missing.");
   }
 
-  const oldAvatarUrl = await User.findById(req.user?._id).avatar;
+  //fetch user
+  const user = await User.findById(req.user?._id).select(
+    "-password -refreshToken"
+  );
+  const oldAvatarUrl = user.avatar;
 
-  //upload updated avatar image on cloudinary and update its url in db
+  //upload updated avatar image on cloudinary
   const avatarResponse = await uploadOnCloudinary(avatarLocalPath);
 
   if (!avatarResponse.url) {
@@ -331,22 +335,18 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     );
   }
 
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set: { avatar: avatarResponse.url },
-    },
-    { new: true }
-  ).select("-password -refreshToken");
+  user.avatar = avatarResponse.url;
+
+  await user.save();
 
   //get public id from url and delete image from cloudinary
   const publicId = getPublicIdFromCloudinaryUrl(oldAvatarUrl);
 
   const destroyResponse = await deleteFromCloudinary(publicId);
 
-  if (destroyResponse.result === "not found") {
+  if (destroyResponse.result !== "ok") {
     console.warn(
-      "No old cover image found on Cloudinary to delete:",
+      "No old avatar image found on Cloudinary to delete:",
       destroyResponse
     );
   }
@@ -357,29 +357,29 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
-  //req.files = {avatar: [{}], coverImage: [{}]}
+  //req.files = {coverImage: [{}]}
   const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
 
   if (!coverImageLocalPath) {
     throw new ApiError(400, "coverImage file is missing.");
   }
 
-  const oldCoverImageUrl = await User.findById(req.user?._id).coverImage;
+  //fetch user
+  const user = await User.findById(req.user?._id).select(
+    "-password -refreshToken"
+  );
+  const oldCoverImageUrl = user.coverImage;
 
   //upload updated cover image on cloudinary and update its url in db
   const coverImageResponse = await uploadOnCloudinary(coverImageLocalPath);
 
   if (!coverImageResponse.url) {
-    throw new ApiError(500, "Error while uploading cover image on clodinary.");
+    throw new ApiError(500, "Error while uploading cover image on cloudinary.");
   }
 
-  const user = await User.findByIdAndUpdate(
-    req.user?._id,
-    {
-      $set: { coverImage: coverImageResponse.url },
-    },
-    { new: true }
-  ).select("-password -refreshToken");
+  user.coverImage = coverImageResponse.url;
+
+  await user.save();
 
   if (oldCoverImageUrl) {
     //get public id from url and delete image from cloudinary
@@ -387,7 +387,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
     const destroyResponse = await deleteFromCloudinary(publicId);
 
-    if (destroyResponse.result === "not found") {
+    if (destroyResponse.result !== "ok") {
       console.warn(
         "No old cover image found on Cloudinary to delete:",
         destroyResponse
@@ -397,7 +397,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
   res
     .status(200)
-    .json(new ApiResponse(200, user, "Cover image updated successfully."));
+    .json(new ApiResponse(200, user, "cover image updated successfully."));
 });
 
 export {
