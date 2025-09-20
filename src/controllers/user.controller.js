@@ -400,6 +400,85 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "cover image updated successfully."));
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+
+  if (!username?.trim()) {
+    throw new ApiError(400, "username is missing.");
+  }
+
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      //gives list of subscribers(or users) of username [e.g chai aur code]
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      //gives list of subscribed channel of username [e.g chai aur code]
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo",
+      },
+    },
+    {
+      $addFields: {
+        //counts no of subscribers to username [e.g chai aur code]
+        subscribersCount: {
+          $size: "$subscribers",
+        },
+        //counts no of channels username [e.g chai aur code] has subscribed
+        channelSubscribedToCount: {
+          $size: "$subscribedTo",
+        },
+        //for button at front-end which shows whether logged-in user (req.user?._id) has subscribed or not.
+        //for curr user which have logged in (req.user?._id), if he is among the subscribers to username [e.g chai aur code]
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        subscribersCount: 1,
+        channelSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverImage: 1,
+        email: 1,
+      },
+    },
+  ]);
+
+  console.log(channel);
+
+  if (!channel?.length) {
+    throw new ApiError(404, "channle does not exists.");
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200, channel[0], "User channel fetched successfully.")
+    );
+});
+
 export {
   registerUser,
   loginUser,
@@ -410,4 +489,5 @@ export {
   updateUserDetails,
   updateUserAvatar,
   updateUserCoverImage,
+  getUserChannelProfile,
 };
