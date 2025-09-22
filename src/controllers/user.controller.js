@@ -166,7 +166,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
   const updatedUser = await User.findByIdAndUpdate(
     userId,
-    { $set: { refreshToken: undefined } },
+    { $unset: { refreshToken: "" } },
     { new: true }
   ).select("-password -refreshToken");
 
