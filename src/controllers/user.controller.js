@@ -166,7 +166,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
   const updatedUser = await User.findByIdAndUpdate(
     userId,
-    { $set: { refreshToken: null } },
+    { $set: { refreshToken: undefined } },
     { new: true }
   ).select("-password -refreshToken");
 
@@ -422,7 +422,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       },
     },
     {
-      //gives list of subscribed channel of username [e.g chai aur code]
+      //gives list of subscribed channel by username [e.g chai aur code]
       $lookup: {
         from: "subscriptions",
         localField: "_id",
@@ -441,7 +441,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
           $size: "$subscribedTo",
         },
         //for button at front-end which shows whether logged-in user (req.user?._id) has subscribed or not.
-        //for curr user which have logged in (req.user?._id), if he is among the subscribers to username [e.g chai aur code]
+        //for current user(req.user?._id) which have logged in, if he is among the subscribers to username [e.g chai aur code]
         isSubscribed: {
           $cond: {
             if: { $in: [req.user?._id, "$subscribers.subscriber"] },
