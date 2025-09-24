@@ -87,7 +87,7 @@ const registerUser = asyncHandler(async (req, res) => {
   if (!avatarImageResponse) {
     throw new ApiError(
       500,
-      "Something went wrong whihle uploading avatar image on cloudinary."
+      "Something went wrong while uploading avatar image on cloudinary."
     );
   }
 

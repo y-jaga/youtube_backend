@@ -20,11 +20,11 @@ const videoSchema = new Schema(
       required: true,
     },
     duration: {
-      type: Number,
+      type: Number, //cloudinary url
       required: true,
     },
     views: {
-      type: Number, //cloudinary url
+      type: Number,
       default: 0,
     },
     isPublished: {
