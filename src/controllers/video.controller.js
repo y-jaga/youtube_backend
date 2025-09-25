@@ -8,17 +8,24 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 const getAllVideos = asyncHandler(async (req, res) => {
   //TODO: get all videos based on query, sort, pagination
 
-  const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
+  const {
+    page = 1,
+    limit = 10,
+    query,
+    sortBy = "views",
+    sortType = "desc",
+    userId,
+  } = req.query;
 
-  if (!sortBy || !sortType || !userId) {
-    throw new ApiError(400, "All fields are required.");
+  if (!userId) {
+    throw new ApiError(400, "userId is required.");
   }
 
   const pageNum = parseInt(page) || 1;
   const limitNum = parseInt(limit) || 10;
 
   //matches videos based on userId and title or description
-  // then sorted and applied pagination
+  //then sorted and applied pagination
   const videos = await Video.aggregate([
     {
       $match: {
@@ -52,10 +59,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
     new ApiResponse(
       200,
       {
-        videos: {
-          metadata: { totalCount: videos[0].metadata[0]?.totalCount || 0 },
-          data: videos[0].data,
-        },
+        videosMetadata: { totalCount: videos[0].metadata[0]?.totalCount || 0 },
+        videos: videos[0].data,
       },
       "Videos fetched successfully."
     )
