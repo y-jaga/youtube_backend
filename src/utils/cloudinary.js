@@ -7,6 +7,27 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+const getPublicIdFromCloudinaryUrl = (url) => {
+  //remove old avatar image from cloudinary
+  //https://res.cloudinary.com/dwzmkzzw6/image/upload/v1757574577/users/profile/ixlhnb2qzkx5hbt6qyxi.jpg"
+  const afterUpload =
+    url.split(
+      "/upload/"
+    )[1]; /* /v1757574577/users/profile/ixlhnb2qzkx5hbt6qyxi.jpg */
+
+  const withoutVersion = afterUpload.replace(
+    /^v[0-9]+\/?/,
+    ""
+  ); /* users/profile/ixlhnb2qzkx5hbt6qyxi.jpg */
+
+  const publicId = withoutVersion.replace(
+    /\.[^/.]+$/,
+    ""
+  ); /* users/profile/ixlhnb2qzkx5hbt6qyxi */
+
+  return publicId;
+};
+
 const uploadOnCloudinary = async (localFilePath) => {
   try {
     if (!localFilePath) return null;
@@ -34,4 +55,8 @@ const deleteFromCloudinary = async (publicId) => {
   }
 };
 
-export { uploadOnCloudinary, deleteFromCloudinary };
+export {
+  uploadOnCloudinary,
+  deleteFromCloudinary,
+  getPublicIdFromCloudinaryUrl,
+};

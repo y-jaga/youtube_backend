@@ -3,7 +3,11 @@ import { Video } from "../models/video.models.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import {
+  deleteFromCloudinary,
+  getPublicIdFromCloudinaryUrl,
+  uploadOnCloudinary,
+} from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
   //TODO: get all videos based on query, sort, pagination
@@ -17,8 +21,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
     userId,
   } = req.query;
 
-  if (!userId) {
-    throw new ApiError(400, "userId is required.");
+  if (!userId || !isValidObjectId(userId)) {
+    throw new ApiError(400, "Valid userId is required.");
   }
 
   const pageNum = parseInt(page) || 1;
@@ -117,4 +121,93 @@ const publishAVideo = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, video, "video published successfully."));
 });
 
-export { getAllVideos, publishAVideo };
+const getVideoById = asyncHandler(async (req, res) => {
+  //TODO: get video by id
+  const { videoId } = req.params;
+
+  if (!videoId || !isValidObjectId(videoId)) {
+    throw new ApiError(400, "Valid videoId is required.");
+  }
+
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "video not found.");
+  }
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, video, "Video fetched successfully."));
+});
+
+const updateVideo = asyncHandler(async (req, res) => {
+  //TODO: update video details like title, description, thumbnail
+
+  // i/p data to update in video
+  const { videoId } = req.params;
+  const thumbnailPath = req.file?.path;
+  const dataToUpdate = req.body;
+
+  const videoDataObj = {
+    title: dataToUpdate?.title,
+    description: dataToUpdate?.description,
+    views: dataToUpdate?.views,
+    isPublished: dataToUpdate?.isPublished,
+  };
+
+  if (!videoId || !isValidObjectId(videoId)) {
+    throw new ApiError(400, "Valid videoId is required.");
+  }
+
+  //find video
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "video not found.");
+  }
+
+  //upload new, delete old thumbnail image from cloudinary, update its url in db
+  if (thumbnailPath) {
+    const oldThumbnailPath = video.thumbnail;
+    console.log(oldThumbnailPath);
+
+    const thumbnailResponse = await uploadOnCloudinary(thumbnailPath);
+
+    if (!thumbnailResponse) {
+      throw new ApiError(
+        500,
+        "Error while uploading thumbnail image on cloudinary"
+      );
+    }
+
+    video.thumbnail = thumbnailResponse.url;
+
+    const deleteResponse = await deleteFromCloudinary(
+      getPublicIdFromCloudinaryUrl(oldThumbnailPath)
+    );
+    console.log(deleteResponse);
+
+    if (
+      deleteResponse.result !== "ok" ||
+      deleteResponse.result === "not found"
+    ) {
+      console.error("Old Thumbnail image not found or deleted from cloudinary");
+    } else {
+      console.log("Old thumbnail image deleted successfully.");
+    }
+  }
+
+  for (const videoEle of ["title", "description", "views", "isPublished"]) {
+    if (videoDataObj[videoEle]) {
+      video[videoEle] = videoDataObj[videoEle];
+    }
+  }
+
+  await video.save();
+
+  res
+    .status(201)
+    .json(new ApiResponse(201, video, "video updated successfully."));
+});
+
+export { getAllVideos, publishAVideo, getVideoById, updateVideo };
