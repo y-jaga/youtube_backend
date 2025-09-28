@@ -317,12 +317,12 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
   user.avatar = avatarResponse.url;
 
-  await user.save();
+  await user.save({ validateBeforeSave: false });
 
   //get public id from url and delete image from cloudinary
   const publicId = getPublicIdFromCloudinaryUrl(oldAvatarUrl);
 
-  const destroyResponse = await deleteFromCloudinary(publicId);
+  const destroyResponse = await deleteFromCloudinary(publicId, "image");
 
   if (destroyResponse.result !== "ok") {
     console.warn(
@@ -358,13 +358,13 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 
   user.coverImage = coverImageResponse.url;
 
-  await user.save();
+  await user.save({ validateBeforeSave: false });
 
   if (oldCoverImageUrl) {
     //get public id from url and delete image from cloudinary
     const publicId = getPublicIdFromCloudinaryUrl(oldCoverImageUrl);
 
-    const destroyResponse = await deleteFromCloudinary(publicId);
+    const destroyResponse = await deleteFromCloudinary(publicId, "image");
 
     if (destroyResponse.result !== "ok") {
       console.warn(

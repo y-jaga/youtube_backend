@@ -140,10 +140,11 @@ const getVideoById = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, video, "Video fetched successfully."));
 });
 
+//only video owner can do
 const updateVideo = asyncHandler(async (req, res) => {
   //TODO: update video details like title, description, thumbnail
 
-  // i/p data to update in video
+  // i/p data to update in video, validated them
   const { videoId } = req.params;
   const thumbnailPath = req.file?.path;
   const dataToUpdate = req.body;
@@ -165,11 +166,13 @@ const updateVideo = asyncHandler(async (req, res) => {
   if (!video) {
     throw new ApiError(404, "video not found.");
   }
+  if (!video.owner.equals(req.user?._id)) {
+    throw new ApiError(403, "Only video owner can update video.");
+  }
 
-  //upload new, delete old thumbnail image from cloudinary, update its url in db
+  //upload new and delete old thumbnail image from cloudinary, update its url in db
   if (thumbnailPath) {
     const oldThumbnailPath = video.thumbnail;
-    console.log(oldThumbnailPath);
 
     const thumbnailResponse = await uploadOnCloudinary(thumbnailPath);
 
@@ -183,9 +186,8 @@ const updateVideo = asyncHandler(async (req, res) => {
     video.thumbnail = thumbnailResponse.url;
 
     const deleteResponse = await deleteFromCloudinary(
-      getPublicIdFromCloudinaryUrl(oldThumbnailPath)
+      getPublicIdFromCloudinaryUrl(oldThumbnailPath, "image")
     );
-    console.log(deleteResponse);
 
     if (
       deleteResponse.result !== "ok" ||
@@ -203,11 +205,110 @@ const updateVideo = asyncHandler(async (req, res) => {
     }
   }
 
-  await video.save();
+  await video.save({ validateBeforeSave: false });
 
   res
     .status(201)
     .json(new ApiResponse(201, video, "video updated successfully."));
 });
 
-export { getAllVideos, publishAVideo, getVideoById, updateVideo };
+//only video owner can do
+const deleteVideo = asyncHandler(async (req, res) => {
+  //TODO: delete video
+
+  //fetch videoId, find and validate video
+  const { videoId } = req.params;
+
+  if (!videoId || !isValidObjectId(videoId)) {
+    throw new ApiError(400, "Valid videoId is required.");
+  }
+
+  const video = await Video.findById(videoId);
+
+  if (!video) {
+    throw new ApiError(404, "Video not found.");
+  }
+
+  if (!video.owner.equals(req.user?._id)) {
+    throw new ApiError(403, "Only video owner can delete video.");
+  }
+
+  //delete uploaded videoFile and thumbnail from cloudinary
+  const videoFileDeleted = await deleteFromCloudinary(
+    getPublicIdFromCloudinaryUrl(video.videoFile),
+    "video"
+  );
+
+  if (
+    videoFileDeleted.result !== "ok" ||
+    videoFileDeleted.result === "not found"
+  ) {
+    throw new ApiError(
+      500,
+      "Something went wrong video file not deleted from cloudinary"
+    );
+  }
+
+  const thumbnailDeleted = await deleteFromCloudinary(
+    getPublicIdFromCloudinaryUrl(video.thumbnail),
+    "image"
+  );
+
+  if (
+    thumbnailDeleted.result !== "ok" ||
+    thumbnailDeleted.result === "not found"
+  ) {
+    throw new ApiError(
+      500,
+      "Something went wrong thumbnail not deleted from cloudinary"
+    );
+  }
+
+  const deletedVideo = await Video.findByIdAndDelete(videoId);
+
+  res
+    .status(204)
+    .json(new ApiResponse(204, deletedVideo, "video deleted successfully."));
+});
+
+//only video owner can do
+const togglePublishStatus = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+
+  if (!videoId || !isValidObjectId(videoId)) {
+    throw new ApiError(400, "Valid videoId is required.");
+  }
+
+  const videoToUpdate = await Video.findById(videoId);
+
+  if (!videoToUpdate) {
+    throw new ApiError(404, "Video not found.");
+  }
+
+  if (!videoToUpdate.owner.equals(req.user?._id)) {
+    throw new ApiError(403, "Only video owner can toggle publish status.");
+  }
+
+  videoToUpdate.isPublished = videoToUpdate.isPublished !== true;
+
+  await videoToUpdate.save({ validateBeforeSave: false });
+
+  res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        videoToUpdate,
+        "video publish status updated successfully."
+      )
+    );
+});
+
+export {
+  getAllVideos,
+  publishAVideo,
+  getVideoById,
+  updateVideo,
+  deleteVideo,
+  togglePublishStatus,
+};
