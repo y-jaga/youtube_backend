@@ -37,6 +37,7 @@ const generateRefreshAndAccessToken = async (userId) => {
 const registerUser = asyncHandler(async (req, res) => {
   const userData = req.body;
   //req.files = {avatar: [{}], coverImage: [{}]}
+  console.log(req.files);
   const avatarLocalPath = req.files?.avatar?.[0]?.path;
   const coverImageLocalPath = req.files?.coverImage?.[0]?.path;
 
