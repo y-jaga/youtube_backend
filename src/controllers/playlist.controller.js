@@ -50,6 +50,7 @@ const getUserPlaylists = asyncHandler(async (req, res) => {
     );
 });
 
+//anyone can fetch playlist of a user
 const getPlaylistById = asyncHandler(async (req, res) => {
   //TODO: get playlist by id
 
@@ -70,7 +71,6 @@ const getPlaylistById = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, playlist, "playlist fetched successfully."));
 });
 
-//only owner can video in playlist
 const addVideoToPlaylist = asyncHandler(async (req, res) => {
   //retrieve and validate videoId and playlistId
   const { playlistId, videoId } = req.params;
@@ -95,6 +95,7 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
     throw new ApiError(404, "video doesn't exists.");
   }
 
+  //only owner add can video in playlist
   if (!playlist.owner.equals(req.user?._id)) {
     throw new ApiError(403, "Only playlist owner can add video in playlist.");
   }
@@ -121,19 +122,110 @@ const addVideoToPlaylist = asyncHandler(async (req, res) => {
 });
 
 const removeVideoFromPlaylist = asyncHandler(async (req, res) => {
-  const { playlistId, videoId } = req.params;
   // TODO: remove video from playlist
+
+  //retrieve and validate playlistId, videoId
+  const { playlistId, videoId } = req.params;
+
+  if (!playlistId || !isValidObjectId(playlistId)) {
+    throw new ApiError(400, "Valid playlistId is required.");
+  }
+  if (!videoId || !isValidObjectId(videoId)) {
+    throw new ApiError(400, "Valid videoId is required.");
+  }
+
+  //only owner can delete playlist video
+  const playlistAfterVideoDeleted = await Playlist.findById(playlistId);
+
+  if (!playlistAfterVideoDeleted) {
+    throw new ApiError(404, "Playlist not found.");
+  }
+
+  if (!playlistAfterVideoDeleted.owner.equals(req.user?._id)) {
+    throw new ApiError(
+      403,
+      "You are not authorized to delete videos from this playlist."
+    );
+  }
+
+  playlistAfterVideoDeleted.videos = playlistAfterVideoDeleted.videos.filter(
+    (video) => !video.equals(videoId)
+  );
+
+  await playlistAfterVideoDeleted.save();
+
+  res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        playlistAfterVideoDeleted,
+        "video deleted from playlist successfully."
+      )
+    );
 });
 
 const deletePlaylist = asyncHandler(async (req, res) => {
-  const { playlistId } = req.params;
   // TODO: delete playlist
+
+  //fetch and validate playlist
+  const { playlistId } = req.params;
+
+  if (!playlistId || !isValidObjectId(playlistId)) {
+    throw new ApiError(400, "Valid playlistId is required.");
+  }
+
+  const playlist = await Playlist.findOneAndDelete({
+    _id: playlistId,
+    owner: req.user?._id,
+  });
+
+  if (!playlist) {
+    throw new ApiError(404, "Playlist not found or you are not authorized.");
+  }
+
+  res
+    .status(204)
+    .json(new ApiResponse(204, playlist, "Playlist deleted successfully."));
 });
 
 const updatePlaylist = asyncHandler(async (req, res) => {
+  //TODO: update playlist
+
+  //retrieve req data and validate
   const { playlistId } = req.params;
   const { name, description } = req.body;
-  //TODO: update playlist
+
+  if (!playlistId || !isValidObjectId(playlistId)) {
+    throw new ApiError(400, "Valid playlistId is required.");
+  }
+
+  if (!name && !description) {
+    throw new ApiError(400, "name or description is required.");
+  }
+
+  const data = {};
+  if (name) {
+    data.name = name;
+  }
+  if (description) {
+    data.description = description;
+  }
+
+  //find and update playlist
+  const playlist = Playlist.findOneAndUpdate(
+    { _id: playlistId, owner: req.user?._id },
+    data,
+    { new: true }
+  );
+
+  if (!playlist) {
+    throw new ApiError(404, "Playlist not found or you are not authorized.");
+  }
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, playlist, "Playlist updated successfully."));
 });
 
 export {
