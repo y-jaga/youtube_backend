@@ -27,7 +27,6 @@ const createPlaylist = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, video, "Playlist created successfully."));
 });
 
-//TODO: when playlist fetched in getUserPlaylists, getPlaylistById the videos field contains objId of video should we populate them
 //anyone can fetch all playlist of any user
 const getUserPlaylists = asyncHandler(async (req, res) => {
   //TODO: get user playlists
@@ -213,9 +212,9 @@ const updatePlaylist = asyncHandler(async (req, res) => {
   }
 
   //find and update playlist
-  const playlist = Playlist.findOneAndUpdate(
+  const playlist = await Playlist.findOneAndUpdate(
     { _id: playlistId, owner: req.user?._id },
-    data,
+    { $set: data },
     { new: true }
   );
 
